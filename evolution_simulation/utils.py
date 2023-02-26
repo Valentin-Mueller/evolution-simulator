@@ -62,9 +62,20 @@ def resolve_ecosystem_attribute_parameters(
     return mean, std, min_value, max_value, volatility
 
 
-def get_evolution_step_dataframe(ecosystem: Ecosystem, organisms: list[Organism]) -> pd.DataFrame:
+def get_evolution_step_dataframe(ecosystem: Ecosystem, organisms: list[Organism], i: int) -> pd.DataFrame:
+    """Create a pandas DataFrame containing information about the current evolution step.
+
+    Args:
+        ecosystem (Ecosystem): The ecosystem running the simulation.
+        organisms (list[Organism]): All current organisms in the ecosystem.
+        i (int): The current iteration.
+
+    Returns:
+        pd.DataFrame: The DataFrame for the step.
+    """
     data = {}
 
+    data['iteration'] = i
     data['temperature'] = ecosystem.temperature.current_value
     data['hazard_rate'] = ecosystem.hazard_rate.current_value
     data['available_food'] = ecosystem.food.current_value

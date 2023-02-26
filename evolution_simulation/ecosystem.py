@@ -6,7 +6,8 @@ import pandas as pd
 from scipy.stats import truncnorm
 
 from evolution_simulation.organism import Organism, Pair
-from evolution_simulation.utils import calculate_truncnorm_a_and_b, resolve_ecosystem_attribute_parameters, get_evolution_step_dataframe
+from evolution_simulation.utils import (calculate_truncnorm_a_and_b, resolve_ecosystem_attribute_parameters,
+                                        get_evolution_step_dataframe)
 
 
 class EcosystemAttribute():
@@ -117,17 +118,38 @@ class Ecosystem():
         self.organisms = None
 
     def initialize_attribute_values(self, n: int) -> None:
+        """Initialize attribute values for a simulation for all attributes.
+
+        Args:
+            n (int): Number of generations/simulation steps.
+        """
         self.temperature.initialize_random_values(n=n)
         self.hazard_rate.initialize_random_values(n=n)
         self.food.initialize_random_values(n=n)
 
     def iterate_attribute_values(self, i: int) -> None:
+        """Adjusts the value for the current iteration.
+
+        Args:
+            i (int): Current iteration/simualtion step.
+        """
         self.temperature.iterate_value(i=i)
         self.hazard_rate.iterate_value(i=i)
         self.food.iterate_value(i=i)
 
     def initialize_organism_attribute_distribution_values(self, parameters: dict[str, float],
                                                           n: int) -> np.ndarray[float]:
+        """Initialize random values from which initial organisms are created.
+
+        Based on a truncated normal distribution.
+
+        Args:
+            parameters (dict[str, float]): Dictionary containing the parameters.
+            n (int): Number of organisms to be created.
+
+        Returns:
+            np.ndarray[float]: Array containing the values.
+        """
         mean = float(parameters['mean'])
         std = float(parameters['std'])
         min_value = float(parameters['min_value'])
@@ -138,7 +160,14 @@ class Ecosystem():
         return truncnorm(a=a, b=b, loc=mean, scale=std).rvs(size=n, random_state=self.rng.integers(1000000))
 
     def initialize_organisms(self, parameters: dict[str, dict[str, float]], n: int) -> None:
+        """Initialize organisms for generation 0 of the simulation.
 
+        Only use if starting of a new simulation is desired.
+
+        Args:
+            parameters (dict[str, dict[str, float]]): Dictionary containing the parameters.
+            n (int): Number of organisms to be created.
+        """
         temperature_ideal_values = self.initialize_organism_attribute_distribution_values(
             parameters=parameters['temperature_ideal'], n=n)
 
@@ -168,6 +197,23 @@ class Ecosystem():
             self.organisms.append(Organism(parameters=new_organism_parameters, random_seed=self.rng.integers(1000000)))
 
     def simulate_evolution(self, n: int) -> pd.DataFrame:
+        """Simulate evolution with a genetic algorithm in a dynamic ecosystem.
+
+        Make sure to call initialize_organisms beforehand if no organisms have been initialized. Stops early in
+        case the number of organisms gets too low to reproduce.
+
+        The ecosystem serves as simualtion environment, while survival/fitness and reproduction of organisms serves
+        as the goal that is optimized via the genetic algorithm.
+
+        Args:
+            n (int): Number of generations/simulation steps.
+
+        Raises:
+            ValueError: In case no organisms have been initialized.
+
+        Returns:
+            pd.DataFrame: DataFrame containing the progress of the values over the course of the simulation.
+        """
         if self.organisms is None:
             raise ValueError('No organisms have been initialized. Please call initialize_organisms first.')
 
@@ -216,9 +262,8 @@ class Ecosystem():
             surviving_organisms = [organism for organism in self.organisms if organism.survives]
 
             if len(surviving_organisms) < 2:
-                print(
-                    f'Stopping simulation early because the number of organisms is insufficient for reproduction after {i} years.'
-                )
+                print(f'Stopping simulation early because the number of organisms is' \
+                      f' insufficient for reproduction after {i} years.')
                 break
 
             # not reversing (sorting descending) because pop returns last element

@@ -29,6 +29,15 @@ class Organism():
         self.rng = np.random.default_rng(seed=random_seed)
 
     def calculate_food_requirement(self, ecosystem: Ecosystem) -> None:
+        """Calculate the organism's food requirement depending on the ecosystem.
+
+        Attributes that increase the organism's fitness or ability to reproduce increase
+        the organism's food requirement, thus limiting the total number of organisms
+        the ecosystem is able to sustain.
+
+        Args:
+            ecosystem (Ecosystem): The organism's ecosystem.
+        """
         temperature_range_ecosystem = ecosystem.temperature.max_value - ecosystem.temperature.min_value
         temperature_range_organism = self.temperature_range * 2
 
@@ -42,7 +51,14 @@ class Organism():
         self.food_requirement = food_requirement
 
     def calculate_fitness(self, ecosystem: Ecosystem) -> None:
+        """Calculate the organism's food requirement depending on the ecosystem.
 
+        The higher the fitness of an organism, the higher the chance it survives and
+        is able to reproduce. Fitness has a minimum of 0.25 and a maximum of 1.0.
+
+        Args:
+            ecosystem (Ecosystem): The organism's ecosystem.
+        """
         if (ecosystem.temperature.current_value >= self.temperature_ideal - self.temperature_range) and (
                 ecosystem.temperature.current_value <= self.temperature_ideal + self.temperature_range):
             base_value = 0.75
@@ -73,7 +89,20 @@ class Pair():
                                       attribute_a: float,
                                       attribute_b: float,
                                       mutation_range: float = 0.1) -> float:
+        """Calculates the value a child inherits from its parents.
 
+        The value is calculated via crossover and has a chance to change by a maximum of mutation_range
+        determined by the mutation chance.
+
+        Args:
+            attribute_a (float): Attribute value for parent a.
+            attribute_b (float): Attribute value for parent b.
+            mutation_range (float, optional): Maximum deviation from the original value caused by mutation.
+            Defaults to 0.1.
+
+        Returns:
+            float: The resulting attribute value.
+        """
         crossover_weight = self.rng.uniform()
 
         child_attribute = attribute_a * crossover_weight + attribute_b * (1 - crossover_weight)
@@ -84,7 +113,17 @@ class Pair():
         return child_attribute
 
     def crossover(self, mutation_range: float = 0.1) -> Organism:
+        """Produces a child organism from the parents forming the pair.
 
+        Each attribute is calculated separately with an own crossover weight.
+
+        Args:
+            mutation_range (float, optional): Maximum deviation from the original value caused by mutation.
+            Defaults to 0.1.
+
+        Returns:
+            Organism: The child organism.
+        """
         child_parameters = {}
 
         child_parameters['temperature_ideal'] = self.calculate_crossover_attribute(self.parent_a.temperature_ideal,
