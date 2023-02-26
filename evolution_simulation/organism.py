@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 
-# from evolution_simulation.ecosystem import Ecosystem
+if TYPE_CHECKING:
+    from evolution_simulation.ecosystem import Ecosystem
 
 
 class Organism():
@@ -22,14 +27,12 @@ class Organism():
 
         self.rng = np.random.default_rng(seed=random_seed)
 
-    # pylint: disable=unused-argument
-    def calculate_food_requirement(self, ecosystem) -> None:
+    def calculate_food_requirement(self, ecosystem: Ecosystem) -> None:
         self.food_requirement = self.rng.uniform(low=0.8, high=1.2)
 
-    # pylint: disable=unused-argument
-    def calculate_fitness(self, ecosystem) -> None:
+    def calculate_fitness(self, ecosystem: Ecosystem) -> None:
         # Temporary
-        self.fitness = self.rng.uniform(low=0.8, high=1.0)
+        self.fitness = self.rng.uniform(low=0.5, high=1.0)
 
 
 class Pair():
