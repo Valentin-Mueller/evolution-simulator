@@ -104,11 +104,13 @@ class Ecosystem():
 
         self.rng = np.random.default_rng(seed=random_seed)
 
-        self.temperature = EcosystemAttribute(parameters=parameters['temperature'])
+        self.temperature = EcosystemAttribute(parameters=parameters['temperature'],
+                                              random_seed=self.rng.integers(1000000))
 
-        self.hazard_rate = EcosystemAttribute(parameters=parameters['hazard_rate'])
+        self.hazard_rate = EcosystemAttribute(parameters=parameters['hazard_rate'],
+                                              random_seed=self.rng.integers(1000000))
 
-        self.food = EcosystemAttribute(parameters=parameters['food'])
+        self.food = EcosystemAttribute(parameters=parameters['food'], random_seed=self.rng.integers(1000000))
 
         self.utilized_food = 0
 
@@ -175,6 +177,7 @@ class Ecosystem():
         self.initialize_attribute_values(n=n)
 
         df = pd.DataFrame(columns=[
+            'iteration',
             'temperature',
             'hazard_rate',
             'available_food',
@@ -195,7 +198,7 @@ class Ecosystem():
             'fitness_std',
         ])
 
-        for i in range(1, n):
+        for i in range(n):
             next_generation = []
 
             self.iterate_attribute_values(i=i)
@@ -207,7 +210,7 @@ class Ecosystem():
                 if organism.fitness < self.rng.uniform():
                     organism.survives = False
 
-            step_df = get_evolution_step_dataframe(ecosystem=self, organisms=self.organisms)
+            step_df = get_evolution_step_dataframe(ecosystem=self, organisms=self.organisms, i=i)
             df = pd.concat([df, step_df], ignore_index=True)
 
             surviving_organisms = [organism for organism in self.organisms if organism.survives]
@@ -244,6 +247,6 @@ class Ecosystem():
 
             self.organisms = next_generation
             self.utilized_food = 0
-            print(f'Generation {i} consists of {len(self.organisms)} organisms.')
+            print(f'Generation {i + 1} consists of {len(self.organisms)} organisms.')
 
         return df
