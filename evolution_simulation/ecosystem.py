@@ -68,7 +68,7 @@ class EcosystemAttribute():
         Returns:
             list[float]: List containing the values.
         """
-        generated_random_values = self.distribution.rvs(size=n, random_state=self.rng.integers(10000))
+        generated_random_values = self.distribution.rvs(size=n, random_state=self.rng.integers(1000000))
 
         corrected_random_values = [generated_random_values[0]]
 
