@@ -1,7 +1,5 @@
 """Module containing various helper function for evolution simulation.
 """
-
-
 def calculate_truncnorm_a_and_b(mean: float, std: float, min_value: float, max_value: float) -> tuple[float, float]:
     """Calculate a and b as required by `scipy.stats.truncnorm`.
 

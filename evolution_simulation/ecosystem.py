@@ -1,7 +1,11 @@
 """Module containing environment and related classes for evolution simulation."""
+from __future__ import annotations
+
 import numpy as np
+import pandas as pd
 from scipy.stats import truncnorm
 
+from evolution_simulation.organism import Organism, Pair
 from evolution_simulation.utils import calculate_truncnorm_a_and_b, resolve_ecosystem_attribute_parameters
 
 
@@ -9,19 +13,19 @@ class EcosystemAttribute():
     """Class representing any attribute of an ecosystem.
     """
 
-    def __init__(
-        self,
-        parameters: dict[str, float],
-        random_seed: int = None,
-    ) -> None:
+    def __init__(self, parameters: dict[str, float], random_seed: int = None) -> None:
+
         mean, std, min_value, max_value, volatility = resolve_ecosystem_attribute_parameters(parameters)
 
         self.update_distribution(mean=mean, std=std, min_value=min_value, max_value=max_value)
 
-        self.volatility = volatility
+        self.volatility = float(volatility)
 
         if self.volatility is None:
             self.volatility = self.std
+
+        self.value_development = None
+        self.current_value = None
 
         self.rng = np.random.default_rng(seed=random_seed)
 
@@ -38,18 +42,16 @@ class EcosystemAttribute():
             min_value (float, optional): Minimum value. Defaults to None.
             max_value (float, optional): Maximum value. Defaults to None.
         """
-        self.mean = mean
-        self.std = std
-        self.min_value = min_value
-        self.max_value = max_value
+        self.mean = float(mean)
+        self.std = float(std)
+        self.min_value = float(min_value)
+        self.max_value = float(max_value)
 
         if self.min_value is None:
-            self.min_value = mean - 3.0 * std
+            self.min_value = self.mean - 3.0 * self.std
 
         if self.max_value is None:
-            self.max_value = mean + 3.0 * std
-        else:
-            self.max_value = max_value
+            self.max_value = self.mean + 3.0 * self.std
 
         a, b = calculate_truncnorm_a_and_b(mean=self.mean,
                                            std=self.std,
@@ -58,15 +60,12 @@ class EcosystemAttribute():
 
         self.distribution = truncnorm(a=a, b=b, loc=mean, scale=std)
 
-    def get_random_values(self, n: int) -> list[float]:
-        """Sample values from a truncated normal distribution and corrects them so the step width is
-        not larger than the attributes volatility.
+    def initialize_random_values(self, n: int) -> None:
+        """Initialize a list of values from a truncated normal distribution and corrects them so the
+        step width is not larger than the attributes volatility.
 
         Args:
             n (int): Number of values.
-
-        Returns:
-            list[float]: List containing the values.
         """
         generated_random_values = self.distribution.rvs(size=n, random_state=self.rng.integers(1000000))
 
@@ -80,22 +79,114 @@ class EcosystemAttribute():
             else:
                 corrected_random_values.append(corrected_random_values[i - 1] - self.volatility)
 
-        return corrected_random_values
+        self.value_development = corrected_random_values
+
+    def iterate_value(self, i: int) -> None:
+        """Set the current value to the value at a specific index in the value development.
+
+        Args:
+            i (int): Index (or iteration step).
+        """
+        self.current_value = self.value_development[i]
 
 
 class Ecosystem():
     """Class representing an ecosystem.
     """
 
-    def __init__(self, parameters: dict[str, dict[str, float]]) -> None:
+    def __init__(self, parameters: dict[str, dict[str, float]], random_seed: int = None) -> None:
+
         required_attributes = ['temperature', 'hazard_rate', 'food']
 
         for attribute in required_attributes:
             if attribute not in parameters.keys():
                 raise ValueError(f'Required attribute {attribute} was not found in dictionary. Got {parameters.keys()}')
 
+        self.rng = np.random.default_rng(seed=random_seed)
+
         self.temperature = EcosystemAttribute(parameters=parameters['temperature'])
 
         self.hazard_rate = EcosystemAttribute(parameters=parameters['hazard_rate'])
 
         self.food = EcosystemAttribute(parameters=parameters['food'])
+
+        self.organisms = None
+
+    def initialize_organism_attribute_distribution_values(self, parameters: dict[str, float],
+                                                          n: int) -> np.ndarray[float]:
+        mean = float(parameters['mean'])
+        std = float(parameters['std'])
+        min_value = float(parameters['min_value'])
+        max_value = float(parameters['max_value'])
+
+        a, b = calculate_truncnorm_a_and_b(mean=mean, std=std, min_value=min_value, max_value=max_value)
+
+        return truncnorm(a=a, b=b, loc=mean, scale=std).rvs(size=n, random_state=self.rng.integers(1000000))
+
+    def initialize_organisms(self, parameters: dict[str, dict[str, float]], n: int) -> None:
+
+        temperature_ideal_values = self.initialize_organism_attribute_distribution_values(
+            parameters=parameters['temperature_ideal'], n=n)
+
+        temperature_range_values = self.initialize_organism_attribute_distribution_values(
+            parameters=parameters['temperature_range'], n=n)
+
+        resilience_values = self.initialize_organism_attribute_distribution_values(parameters=parameters['resilience'],
+                                                                                   n=n)
+
+        fertility_values = self.initialize_organism_attribute_distribution_values(parameters=parameters['fertility'],
+                                                                                  n=n)
+
+        mutation_chance_values = self.initialize_organism_attribute_distribution_values(
+            parameters=parameters['mutation_chance'], n=n)
+
+        self.organisms = []
+
+        for i in range(n):
+            new_organism_parameters = {
+                'temperature_ideal': temperature_ideal_values[i],
+                'temperature_range': temperature_range_values[i],
+                'resilience': resilience_values[i],
+                'fertility': fertility_values[i],
+                'mutation_chance': mutation_chance_values[i],
+            }
+
+            self.organisms.append(Organism(parameters=new_organism_parameters, random_seed=self.rng.integers(1000000)))
+
+    def simulate_evolution(self, n: int) -> pd.DataFrame:
+        if self.organisms is None:
+            raise ValueError('No organisms have been initialized. Please call initialize_organisms first.')
+
+        print(f'Initializing evolution simulation starting with {len(self.organisms)} organisms for {n} generations...')
+        print()
+
+        for i in range(n):
+            next_generation = []
+
+            for organism in self.organisms:
+                organism.calculate_food_requirement(ecosystem=self)
+                organism.calculate_fitness(ecosystem=self)
+
+                if organism.fitness < self.rng.uniform():
+                    organism.survives = False
+
+            reproducing_organisms = [organism for organism in self.organisms if organism.survives]
+
+            if len(reproducing_organisms) < 2:
+                print(
+                    f'Stopping simulation early because the number of organisms is insufficient for reproduction after {i+1} years.'
+                )
+                break
+
+            self.rng.shuffle(reproducing_organisms)
+
+            pairs = []
+
+            while len(reproducing_organisms) > 1:
+                pairs.append(Pair(reproducing_organisms.pop(), reproducing_organisms.pop()))
+
+            for pair in pairs:
+                next_generation.extend(pair.produce_offspring())
+
+            self.organisms = next_generation
+            print(f'Generation {i+1} consists of {len(self.organisms)} organisms.')
