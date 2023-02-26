@@ -6,7 +6,7 @@ import pandas as pd
 from scipy.stats import truncnorm
 
 from evolution_simulation.organism import Organism, Pair
-from evolution_simulation.utils import calculate_truncnorm_a_and_b, resolve_ecosystem_attribute_parameters
+from evolution_simulation.utils import calculate_truncnorm_a_and_b, resolve_ecosystem_attribute_parameters, get_evolution_step_dataframe
 
 
 class EcosystemAttribute():
@@ -110,7 +110,19 @@ class Ecosystem():
 
         self.food = EcosystemAttribute(parameters=parameters['food'])
 
+        self.utilized_food = 0
+
         self.organisms = None
+
+    def initialize_attribute_values(self, n: int) -> None:
+        self.temperature.initialize_random_values(n=n)
+        self.hazard_rate.initialize_random_values(n=n)
+        self.food.initialize_random_values(n=n)
+
+    def iterate_attribute_values(self, i: int) -> None:
+        self.temperature.iterate_value(i=i)
+        self.hazard_rate.iterate_value(i=i)
+        self.food.iterate_value(i=i)
 
     def initialize_organism_attribute_distribution_values(self, parameters: dict[str, float],
                                                           n: int) -> np.ndarray[float]:
@@ -160,8 +172,32 @@ class Ecosystem():
         print(f'Initializing evolution simulation starting with {len(self.organisms)} organisms for {n} generations...')
         print()
 
-        for i in range(n):
+        self.initialize_attribute_values(n=n)
+
+        df = pd.DataFrame(columns=[
+            'temperature',
+            'hazard_rate',
+            'food',
+            'temperature_ideal_mean',
+            'temperature_ideal_std',
+            'temperature_range_mean',
+            'temperature_range_std',
+            'resilience_mean',
+            'resilience_std',
+            'fertility_mean',
+            'fertility_std',
+            'mutation_chance_mean',
+            'mutation_chance_std',
+            'food_requirement_mean',
+            'food_requirement_std',
+            'fitness_mean',
+            'fitness_std',
+        ])
+
+        for i in range(1, n):
             next_generation = []
+
+            self.iterate_attribute_values(i=i)
 
             for organism in self.organisms:
                 organism.calculate_food_requirement(ecosystem=self)
@@ -170,23 +206,43 @@ class Ecosystem():
                 if organism.fitness < self.rng.uniform():
                     organism.survives = False
 
-            reproducing_organisms = [organism for organism in self.organisms if organism.survives]
+            step_df = get_evolution_step_dataframe(ecosystem=self, organisms=self.organisms)
+            df = pd.concat([df, step_df], ignore_index=True)
 
-            if len(reproducing_organisms) < 2:
+            surviving_organisms = [organism for organism in self.organisms if organism.survives]
+
+            if len(surviving_organisms) < 2:
                 print(
-                    f'Stopping simulation early because the number of organisms is insufficient for reproduction after {i+1} years.'
+                    f'Stopping simulation early because the number of organisms is insufficient for reproduction after {i} years.'
                 )
                 break
+
+            # not reversing (sorting descending) because pop returns last element
+            surviving_organisms.sort(key=lambda x: x.fitness)
+
+            reproducing_organisms = []
+
+            while self.utilized_food < self.food.current_value:
+                reproducing_organism = surviving_organisms.pop()
+                self.utilized_food += reproducing_organism.food_requirement
+
+                reproducing_organisms.append(reproducing_organism)
 
             self.rng.shuffle(reproducing_organisms)
 
             pairs = []
 
             while len(reproducing_organisms) > 1:
-                pairs.append(Pair(reproducing_organisms.pop(), reproducing_organisms.pop()))
+                organism_a = reproducing_organisms.pop()
+                organism_b = reproducing_organisms.pop()
+
+                pairs.append(Pair(organism_a=organism_a, organism_b=organism_b))
 
             for pair in pairs:
                 next_generation.extend(pair.produce_offspring())
 
             self.organisms = next_generation
-            print(f'Generation {i+1} consists of {len(self.organisms)} organisms.')
+            self.utilized_food = 0
+            print(f'Generation {i} consists of {len(self.organisms)} organisms.')
+
+        return df

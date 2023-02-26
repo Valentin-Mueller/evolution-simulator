@@ -28,7 +28,17 @@ class Organism():
         self.rng = np.random.default_rng(seed=random_seed)
 
     def calculate_food_requirement(self, ecosystem: Ecosystem) -> None:
-        self.food_requirement = self.rng.uniform(low=0.8, high=1.2)
+        temperature_range_ecosystem = ecosystem.temperature.max_value - ecosystem.temperature.min_value
+        temperature_range_organism = self.temperature_range * 2
+
+        temperature_tolerance_coefficient = temperature_range_organism / temperature_range_ecosystem
+
+        food_requirement = 1
+        food_requirement *= temperature_tolerance_coefficient * 3
+        food_requirement *= 0.5 + self.resilience
+        food_requirement *= self.fertility / 2.0
+
+        self.food_requirement = food_requirement
 
     def calculate_fitness(self, ecosystem: Ecosystem) -> None:
         # Temporary
