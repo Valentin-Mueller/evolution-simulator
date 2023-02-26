@@ -67,7 +67,8 @@ def get_evolution_step_dataframe(ecosystem: Ecosystem, organisms: list[Organism]
 
     data['temperature'] = ecosystem.temperature.current_value
     data['hazard_rate'] = ecosystem.hazard_rate.current_value
-    data['food'] = ecosystem.hazard_rate.current_value
+    data['available_food'] = ecosystem.food.current_value
+    data['number_organisms'] = len(organisms)
 
     temperature_ideal_values = [organism.temperature_ideal for organism in organisms]
     temperature_range_values = [organism.temperature_range for organism in organisms]

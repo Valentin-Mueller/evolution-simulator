@@ -1,3 +1,4 @@
+"""Module containing organisms and related classes for evolution simulation."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -41,8 +42,15 @@ class Organism():
         self.food_requirement = food_requirement
 
     def calculate_fitness(self, ecosystem: Ecosystem) -> None:
-        # Temporary
-        self.fitness = self.rng.uniform(low=0.5, high=1.0)
+
+        if (ecosystem.temperature.current_value >= self.temperature_ideal - self.temperature_range) and (
+                ecosystem.temperature.current_value <= self.temperature_ideal + self.temperature_range):
+            base_value = 0.75
+        else:
+            base_value = 0.25
+
+        fitness = base_value + min([max([self.resilience - ecosystem.hazard_rate.current_value, 0.0]), 0.25])
+        self.fitness = fitness
 
 
 class Pair():
@@ -104,6 +112,13 @@ class Pair():
         return Organism(parameters=child_parameters, random_seed=child_random_seed)
 
     def produce_offspring(self) -> list[Organism]:
+        """Produce offspring.
+
+        The number produced depends on the fertility of the pair, which depends on both parents.
+
+        Returns:
+            list[Organism]: The offspring organisms as a list.
+        """
         offspring = []
 
         for _ in range(self.fertility):

@@ -177,7 +177,8 @@ class Ecosystem():
         df = pd.DataFrame(columns=[
             'temperature',
             'hazard_rate',
-            'food',
+            'available_food',
+            'number_organisms',
             'temperature_ideal_mean',
             'temperature_ideal_std',
             'temperature_range_mean',
@@ -222,7 +223,7 @@ class Ecosystem():
 
             reproducing_organisms = []
 
-            while self.utilized_food < self.food.current_value:
+            while self.utilized_food < self.food.current_value and len(surviving_organisms) > 0:
                 reproducing_organism = surviving_organisms.pop()
                 self.utilized_food += reproducing_organism.food_requirement
 
